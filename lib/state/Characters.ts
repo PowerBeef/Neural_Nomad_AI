@@ -179,7 +179,7 @@ export namespace Characters {
             const oldImageID = get().card?.image_id
             const card = get().card
             if (!id || !oldImageID || !card) {
-                Logger.errorToast('Could not get data, something very wrong has happned!')
+                Logger.errorToast('Could not get data, something very wrong has happened!')
                 return
             }
             const imageID = Date.now()
