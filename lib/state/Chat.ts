@@ -301,6 +301,13 @@ export namespace Chats {
         deleteEntry: async (index: number) => {
             const messages = get().data?.messages
             if (!messages) return
+            
+            // Add bounds checking for array access
+            if (index < 0 || index >= messages.length) {
+                Logger.error('Invalid message index for deletion:', index)
+                return
+            }
+            
             const entryId = messages[index].id
             if (!entryId) return
 
@@ -328,6 +335,12 @@ export namespace Chats {
             const { verifySwipeId, updateFinished, updateStarted, timings, resetTimings } = options
             const messages = get()?.data?.messages
             if (!messages) return
+
+            // Add bounds checking for array access
+            if (index < 0 || index >= messages.length) {
+                Logger.error('Invalid message index for update:', index)
+                return
+            }
 
             let chatSwipeId: number | undefined =
                 messages[index]?.swipes[messages[index].swipe_id].id
@@ -376,6 +389,13 @@ export namespace Chats {
         swipe: async (index: number, direction: number) => {
             let messages = get()?.data?.messages
             if (!messages) return false
+            
+            // Add bounds checking for array access
+            if (index < 0 || index >= messages.length) {
+                Logger.error('Invalid message index for swipe:', index)
+                return false
+            }
+            
             messages = [...messages]
             const swipe_id = messages[index].swipe_id
             const target = swipe_id + direction
@@ -403,6 +423,13 @@ export namespace Chats {
         addSwipe: async (index: number, message: string = '') => {
             const messages = get().data?.messages
             if (!messages) return
+            
+            // Add bounds checking for array access
+            if (index < 0 || index >= messages.length) {
+                Logger.error('Invalid message index for swipe addition:', index)
+                return
+            }
+            
             const entryId = messages[index].id
 
             const swipe = await db.mutate.createSwipe(entryId, message)
