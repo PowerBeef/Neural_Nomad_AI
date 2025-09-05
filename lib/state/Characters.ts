@@ -96,11 +96,22 @@ export namespace Characters {
                         return
                     }
                     const imageID = Date.now()
-                    await db.mutate.updateCardField('image_id', imageID, id)
-                    await deleteImage(oldImageID)
-                    await copyImage(sourceURI, imageID)
-                    card.image_id = imageID
-                    set((state) => ({ ...state, card: card }))
+                    try {
+                        await db.mutate.updateCardField('image_id', imageID, id)
+                        await deleteImage(oldImageID)
+                        await copyImage(sourceURI, imageID)
+                        card.image_id = imageID
+                        set((state) => ({ ...state, card: card }))
+                    } catch (error) {
+                        Logger.error('Failed to update image:', error)
+                        Logger.errorToast('Failed to update image. Please try again.')
+                        // Attempt to rollback the database change
+                        try {
+                            await db.mutate.updateCardField('image_id', oldImageID, id)
+                        } catch (rollbackError) {
+                            Logger.error('Failed to rollback image update:', rollbackError)
+                        }
+                    }
                 },
                 getCache: async (userName: string) => {
                     const cache = get().tokenCache
@@ -183,11 +194,22 @@ export namespace Characters {
                 return
             }
             const imageID = Date.now()
-            await db.mutate.updateCardField('image_id', imageID, id)
-            await deleteImage(oldImageID)
-            await copyImage(sourceURI, imageID)
-            card.image_id = imageID
-            set((state) => ({ ...state, card: card }))
+            try {
+                await db.mutate.updateCardField('image_id', imageID, id)
+                await deleteImage(oldImageID)
+                await copyImage(sourceURI, imageID)
+                card.image_id = imageID
+                set((state) => ({ ...state, card: card }))
+            } catch (error) {
+                Logger.error('Failed to update image:', error)
+                Logger.errorToast('Failed to update image. Please try again.')
+                // Attempt to rollback the database change
+                try {
+                    await db.mutate.updateCardField('image_id', oldImageID, id)
+                } catch (rollbackError) {
+                    Logger.error('Failed to rollback image update:', rollbackError)
+                }
+            }
         },
         getCache: async (charName: string) => {
             const cache = get().tokenCache
