@@ -238,7 +238,10 @@ const ChracterEditorScreen = () => {
                         bottomOffset={16}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="always"
-                        contentContainerStyle={{ rowGap: 8, paddingBottom: 48 }}>
+                        contentContainerStyle={{
+                            rowGap: spacing.s,
+                            paddingBottom: spacing.xl * 2,
+                        }}>
                         <View style={styles.characterHeader}>
                             <PopupMenu
                                 placement="right"

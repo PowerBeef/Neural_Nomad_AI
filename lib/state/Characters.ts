@@ -103,13 +103,13 @@ export namespace Characters {
                         card.image_id = imageID
                         set((state) => ({ ...state, card: card }))
                     } catch (error) {
-                        Logger.error('Failed to update image:', error)
+                        Logger.error(`Failed to update image: ${error}`)
                         Logger.errorToast('Failed to update image. Please try again.')
                         // Attempt to rollback the database change
                         try {
                             await db.mutate.updateCardField('image_id', oldImageID, id)
                         } catch (rollbackError) {
-                            Logger.error('Failed to rollback image update:', rollbackError)
+                            Logger.error(`Failed to rollback image update: ${rollbackError}`)
                         }
                     }
                 },
@@ -118,7 +118,13 @@ export namespace Characters {
                     if (cache && cache?.otherName === userName) return cache
 
                     const card = get().card
-                    if (!card || !card.description || !card.mes_example || !card.personality || !card.scenario)
+                    if (
+                        !card ||
+                        !card.description ||
+                        !card.mes_example ||
+                        !card.personality ||
+                        !card.scenario
+                    )
                         return {
                             otherName: userName,
                             description_length: 0,
@@ -201,13 +207,13 @@ export namespace Characters {
                 card.image_id = imageID
                 set((state) => ({ ...state, card: card }))
             } catch (error) {
-                Logger.error('Failed to update image:', error)
+                Logger.error(`Failed to update image: ${error}`)
                 Logger.errorToast('Failed to update image. Please try again.')
                 // Attempt to rollback the database change
                 try {
                     await db.mutate.updateCardField('image_id', oldImageID, id)
                 } catch (rollbackError) {
-                    Logger.error('Failed to rollback image update:', rollbackError)
+                    Logger.error(`Failed to rollback image update: ${rollbackError}`)
                 }
             }
         },
@@ -217,7 +223,13 @@ export namespace Characters {
             if (cache?.otherName && cache.otherName === useUserStore.getState().card?.name)
                 return cache
 
-            if (!card || !card.description || !card.mes_example || !card.personality || !card.scenario)
+            if (
+                !card ||
+                !card.description ||
+                !card.mes_example ||
+                !card.personality ||
+                !card.scenario
+            )
                 return {
                     otherName: charName,
                     description_length: 0,
@@ -508,7 +520,15 @@ export namespace Characters {
             }
 
             export const updateCard = async (card: CharacterCardData, cardID: number) => {
-                if (!card || !card.description || !card.first_mes || !card.name || !card.personality || !card.scenario || !card.mes_example) {
+                if (
+                    !card ||
+                    !card.description ||
+                    !card.first_mes ||
+                    !card.name ||
+                    !card.personality ||
+                    !card.scenario ||
+                    !card.mes_example
+                ) {
                     Logger.errorToast('Invalid card data provided')
                     return
                 }
@@ -755,7 +775,7 @@ export namespace Characters {
                         .then(() => Logger.info(`Card cloned: ${card.name}`))
                         .catch((e) => Logger.info(`Failed to clone card: ${e}`))
                 } catch (error) {
-                    Logger.error('Failed to duplicate card:', error)
+                    Logger.error(`Failed to duplicate card: ${error}`)
                     Logger.errorToast('Failed to copy card. Please try again.')
                     throw error // Re-throw to allow caller to handle
                 }
@@ -768,7 +788,7 @@ export namespace Characters {
                         .set({ background_image: imageURI })
                         .where(eq(characters.id, charId))
                 } catch (error) {
-                    Logger.error('Failed to update background:', error)
+                    Logger.error(`Failed to update background: ${error}`)
                     Logger.errorToast('Failed to update background. Please try again.')
                     throw error // Re-throw to allow caller to handle
                 }
@@ -781,7 +801,7 @@ export namespace Characters {
                         .set({ background_image: null })
                         .where(eq(characters.id, charId))
                 } catch (error) {
-                    Logger.error('Failed to delete background:', error)
+                    Logger.error(`Failed to delete background: ${error}`)
                     Logger.errorToast('Failed to delete background. Please try again.')
                     throw error // Re-throw to allow caller to handle
                 }
@@ -873,7 +893,7 @@ export namespace Characters {
             Logger.info(`Creating new character: ${result.data.name}`)
             return await db.mutate.createCharacter(converted, uri)
         } catch (error) {
-            Logger.error('Failed to create character from V1 JSON:', error)
+            Logger.error(`Failed to create character from V1 JSON: ${error}`)
             Logger.errorToast('Failed to create character. Please try again.')
             throw error // Re-throw to allow caller to handle
         }
@@ -891,7 +911,7 @@ export namespace Characters {
             Logger.info(`Creating new character: ${result.data.data.name}`)
             return await db.mutate.createCharacter(result.data, uri)
         } catch (error) {
-            Logger.error('Failed to create character from V2 JSON:', error)
+            Logger.error(`Failed to create character from V2 JSON: ${error}`)
             Logger.errorToast('Failed to create character. Please try again.')
             throw error // Re-throw to allow caller to handle
         }
@@ -926,13 +946,13 @@ export namespace Characters {
             Logger.error('Exported card does not exist!')
             return
         }
-        
+
         // Add null check for image_id
         if (!dbcard.image_id) {
             Logger.error('Exported card has no image data!')
             return
         }
-        
+
         const imagePath = getImageDir(dbcard.image_id)
         // name can be empty string, should at least have something
         const exportedFileName = (dbcard.name ?? 'Character') + '.png'

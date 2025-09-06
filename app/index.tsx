@@ -1,3 +1,4 @@
+import ThemedButton from '@components/buttons/ThemedButton'
 import HeaderTitle from '@components/views/HeaderTitle'
 import { db } from '@db'
 import { AntDesign } from '@expo/vector-icons'
@@ -12,7 +13,6 @@ import { useEffect, useState } from 'react'
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 
 import migrations from '../db/migrations/migrations'
-import ThemedButton from '@components/buttons/ThemedButton'
 
 const Home = () => {
     const { color } = Theme.useTheme()
@@ -54,7 +54,7 @@ const Home = () => {
                     If you are seeing this, something has gone terribly wrong. Report this error
                     below, include a screenshot of the log above.
                 </Text>
-                <Text style={styles.subtitle}></Text>
+                <Text style={styles.subtitle} />
                 <ThemedButton
                     variant="secondary"
                     label="Github Repository"
@@ -105,7 +105,7 @@ const useStyles = () => {
 
         subtitle: {
             color: color.text._400,
-            marginHorizontal: 32,
+            marginHorizontal: spacing.xl2,
             textAlign: 'center',
         },
 
