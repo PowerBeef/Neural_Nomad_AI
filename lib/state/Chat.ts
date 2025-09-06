@@ -248,8 +248,14 @@ export namespace Chats {
         },
 
         delete: async (chatId: number) => {
-            await db.mutate.deleteChat(chatId)
-            if (get().data?.id === chatId) get().reset()
+            try {
+                await db.mutate.deleteChat(chatId)
+                if (get().data?.id === chatId) get().reset()
+            } catch (error) {
+                Logger.error('Failed to delete chat:', error)
+                Logger.errorToast('Failed to delete chat. Please try again.')
+                throw error // Re-throw to allow caller to handle
+            }
         },
 
         reset: () =>
@@ -268,48 +274,73 @@ export namespace Chats {
             const chatId = get().data?.id
             if (!messages || !chatId) return
             const order = messages.length > 0 ? messages[messages.length - 1].order + 1 : 0
-            const entry = await db.mutate.createEntry(
-                chatId,
-                name,
-                is_user,
-                order,
-                message,
-                attachments
-            )
-            if (attachments.length > 0 && entry) {
-                const entryId = entry.id
+            try {
+                const entry = await db.mutate.createEntry(
+                    chatId,
+                    name,
+                    is_user,
+                    order,
+                    message,
+                    attachments
+                )
+                if (attachments.length > 0 && entry) {
+                    const entryId = entry.id
+                }
+                if (entry) messages.push(entry)
+                set((state) => ({
+                    ...state,
+                    data: state?.data ? { ...state.data, messages: [...messages] } : state.data,
+                }))
+                return entry?.swipes[0].id
+            } catch (error) {
+                Logger.error('Failed to create chat entry:', error)
+                Logger.errorToast('Failed to add message. Please try again.')
+                throw error // Re-throw to allow caller to handle
             }
-            if (entry) messages.push(entry)
-            set((state) => ({
-                ...state,
-                data: state?.data ? { ...state.data, messages: [...messages] } : state.data,
-            }))
-            return entry?.swipes[0].id
         },
         deleteEntry: async (index: number) => {
             const messages = get().data?.messages
             if (!messages) return
+            
+            // Add bounds checking for array access
+            if (index < 0 || index >= messages.length) {
+                Logger.error('Invalid message index for deletion:', index)
+                return
+            }
+            
             const entryId = messages[index].id
             if (!entryId) return
 
-            await db.mutate.deleteChatEntry(entryId)
+            try {
+                await db.mutate.deleteChatEntry(entryId)
 
-            set((state) => {
-                if (!state.data) return state
-                return {
-                    ...state,
-                    data: {
-                        ...state.data,
-                        messages: messages.filter((item, ind) => ind !== index),
-                    },
-                }
-            })
+                set((state) => {
+                    if (!state.data) return state
+                    return {
+                        ...state,
+                        data: {
+                            ...state.data,
+                            messages: messages.filter((item, ind) => ind !== index),
+                        },
+                    }
+                })
+            } catch (error) {
+                Logger.error('Failed to delete chat entry:', error)
+                Logger.errorToast('Failed to delete message. Please try again.')
+                throw error // Re-throw to allow caller to handle
+            }
         },
 
         updateEntry: async (index: number, message: string, options = {}) => {
             const { verifySwipeId, updateFinished, updateStarted, timings, resetTimings } = options
             const messages = get()?.data?.messages
             if (!messages) return
+
+            // Add bounds checking for array access
+            if (index < 0 || index >= messages.length) {
+                Logger.error('Invalid message index for update:', index)
+                return
+            }
 
             let chatSwipeId: number | undefined =
                 messages[index]?.swipes[messages[index].swipe_id].id
@@ -335,29 +366,42 @@ export namespace Chats {
             if (timings) updatedSwipe.timings = timings
             if (resetTimings) updatedSwipe.timings = null
 
-            await db.mutate.updateChatSwipe(updatedSwipe)
+            try {
+                await db.mutate.updateChatSwipe(updatedSwipe)
 
-            if (!updateState) return
+                if (!updateState) return
 
-            const entry = messages[index].swipes[messages[index].swipe_id]
-            entry.swipe = message
-            entry.token_count = undefined
-            if (updateFinished) entry.gen_finished = date
-            if (updateStarted) entry.gen_started = date
-            if (timings) entry.timings = timings
-            if (resetTimings) entry.timings = null
-            messages[index].swipes[messages[index].swipe_id] = entry
+                const entry = messages[index].swipes[messages[index].swipe_id]
+                entry.swipe = message
+                entry.token_count = undefined
+                if (updateFinished) entry.gen_finished = date
+                if (updateStarted) entry.gen_started = date
+                if (timings) entry.timings = timings
+                if (resetTimings) entry.timings = null
+                messages[index].swipes[messages[index].swipe_id] = entry
 
-            set((state) => ({
-                ...state,
-                data: state?.data ? { ...state.data, messages: messages } : state.data,
-            }))
+                set((state) => ({
+                    ...state,
+                    data: state?.data ? { ...state.data, messages: messages } : state.data,
+                }))
+            } catch (error) {
+                Logger.error('Failed to update chat entry:', error)
+                Logger.errorToast('Failed to update message. Please try again.')
+                throw error // Re-throw to allow caller to handle
+            }
         },
 
         // returns true if overflowing right swipe, used to trigger generate
         swipe: async (index: number, direction: number) => {
             let messages = get()?.data?.messages
             if (!messages) return false
+            
+            // Add bounds checking for array access
+            if (index < 0 || index >= messages.length) {
+                Logger.error('Invalid message index for swipe:', index)
+                return false
+            }
+            
             messages = [...messages]
             const swipe_id = messages[index].swipe_id
             const target = swipe_id + direction
@@ -377,7 +421,23 @@ export namespace Chats {
             })
 
             const entryId = messages[index].id
-            await db.mutate.updateEntrySwipeId(entryId, target)
+            try {
+                await db.mutate.updateEntrySwipeId(entryId, target)
+            } catch (error) {
+                Logger.error('Failed to update entry swipe ID:', error)
+                Logger.errorToast('Failed to update swipe position. Please try again.')
+                // Rollback the state change
+                messages[index].swipe_id = swipe_id
+                set((state) => {
+                    if (state.data) {
+                        return {
+                            ...state,
+                            data: { ...state.data, messages: messages },
+                        }
+                    } else return state
+                })
+                throw error // Re-throw to allow caller to handle
+            }
 
             return false
         },
@@ -385,17 +445,29 @@ export namespace Chats {
         addSwipe: async (index: number, message: string = '') => {
             const messages = get().data?.messages
             if (!messages) return
+            
+            // Add bounds checking for array access
+            if (index < 0 || index >= messages.length) {
+                Logger.error('Invalid message index for swipe addition:', index)
+                return
+            }
+            
             const entryId = messages[index].id
 
-            const swipe = await db.mutate.createSwipe(entryId, message)
-            if (swipe) messages[index].swipes.push(swipe)
-            await db.mutate.updateEntrySwipeId(entryId, messages[index].swipes.length - 1)
-            messages[index].swipe_id = messages[index].swipes.length - 1
-            set((state: ChatState) => ({
-                ...state,
-                data: state?.data ? { ...state.data, messages: messages } : state.data,
-            }))
-            return swipe?.id
+            try {
+                const swipe = await db.mutate.createSwipe(entryId, message)
+                if (swipe) messages[index].swipes.push(swipe)
+                await db.mutate.updateEntrySwipeId(entryId, messages[index].swipes.length - 1)
+                messages[index].swipe_id = messages[index].swipes.length - 1
+                set((state: ChatState) => ({
+                    ...state,
+                    data: state?.data ? { ...state.data, messages: messages } : state.data,
+                }))
+            } catch (error) {
+                Logger.error('Failed to add swipe:', error)
+                Logger.errorToast('Failed to add message variant. Please try again.')
+                throw error // Re-throw to allow caller to handle
+            }
         },
 
         getTokenCount: async (
@@ -455,15 +527,22 @@ export namespace Chats {
                 return
             }
             if (buffer.timings) updatedSwipe.timings = buffer.timings
-            if (!index) {
-                // this means there is no chat loaded, we need to update the db anyways
-                await db.mutate.updateChatSwipe(updatedSwipe)
-            } else
-                await get().updateEntry(index - 1, get().buffer.data, {
-                    updateFinished: true,
-                    verifySwipeId: cachedSwipeId,
-                    timings: buffer.timings,
-                })
+            
+            try {
+                if (!index) {
+                    // this means there is no chat loaded, we need to update the db anyways
+                    await db.mutate.updateChatSwipe(updatedSwipe)
+                } else
+                    await get().updateEntry(index - 1, get().buffer.data, {
+                        updateFinished: true,
+                        verifySwipeId: cachedSwipeId,
+                        timings: buffer.timings,
+                    })
+            } catch (error) {
+                Logger.error('Failed to update from buffer:', error)
+                Logger.errorToast('Failed to save message. Please try again.')
+                throw error // Re-throw to allow caller to handle
+            }
         },
         insertLastToBuffer: () => {
             const message = get()?.data?.messages?.at(-1)
@@ -504,13 +583,20 @@ export namespace Chats {
             const messages = get()?.data?.messages
             const message = messages?.[index]
             if (!messages || !message) return
-            await db.mutate.deleteAttachment(attachmentId)
-            message.attachments = message.attachments.filter((item) => item.id !== attachmentId)
-            messages[index] = message
-            set((state) => ({
-                ...state,
-                data: state?.data ? { ...state.data, messages: [...messages] } : state.data,
-            }))
+            
+            try {
+                await db.mutate.deleteAttachment(attachmentId)
+                message.attachments = message.attachments.filter((item) => item.id !== attachmentId)
+                messages[index] = message
+                set((state) => ({
+                    ...state,
+                    data: state?.data ? { ...state.data, messages: [...messages] } : state.data,
+                }))
+            } catch (error) {
+                Logger.error('Failed to remove attachment:', error)
+                Logger.errorToast('Failed to remove attachment. Please try again.')
+                throw error // Re-throw to allow caller to handle
+            }
         },
         renameChat: (chatId: number, name: string) => {
             const data = get().data
@@ -519,7 +605,18 @@ export namespace Chats {
                 set({
                     data: { ...data, name: name },
                 })
-            db.mutate.renameChat(chatId, name)
+            try {
+                db.mutate.renameChat(chatId, name)
+            } catch (error) {
+                Logger.error('Failed to rename chat:', error)
+                Logger.errorToast('Failed to rename chat. Please try again.')
+                // Revert the local state change
+                if (data.id === chatId) {
+                    set({
+                        data: { ...data, name: data.name },
+                    })
+                }
+            }
         },
     }))
 

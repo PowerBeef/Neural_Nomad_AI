@@ -91,23 +91,34 @@ export namespace Characters {
                     const id = get().id
                     const oldImageID = get().card?.image_id
                     const card = get().card
-                    if (!id || !oldImageID || !card) {
+                    if (!id || !oldImageID || !card || !card.image_id) {
                         Logger.errorToast('Could not get data, something very wrong has happened!')
                         return
                     }
                     const imageID = Date.now()
-                    await db.mutate.updateCardField('image_id', imageID, id)
-                    await deleteImage(oldImageID)
-                    await copyImage(sourceURI, imageID)
-                    card.image_id = imageID
-                    set((state) => ({ ...state, card: card }))
+                    try {
+                        await db.mutate.updateCardField('image_id', imageID, id)
+                        await deleteImage(oldImageID)
+                        await copyImage(sourceURI, imageID)
+                        card.image_id = imageID
+                        set((state) => ({ ...state, card: card }))
+                    } catch (error) {
+                        Logger.error('Failed to update image:', error)
+                        Logger.errorToast('Failed to update image. Please try again.')
+                        // Attempt to rollback the database change
+                        try {
+                            await db.mutate.updateCardField('image_id', oldImageID, id)
+                        } catch (rollbackError) {
+                            Logger.error('Failed to rollback image update:', rollbackError)
+                        }
+                    }
                 },
                 getCache: async (userName: string) => {
                     const cache = get().tokenCache
                     if (cache && cache?.otherName === userName) return cache
 
                     const card = get().card
-                    if (!card)
+                    if (!card || !card.description || !card.mes_example || !card.personality || !card.scenario)
                         return {
                             otherName: userName,
                             description_length: 0,
@@ -178,16 +189,27 @@ export namespace Characters {
             const id = get().id
             const oldImageID = get().card?.image_id
             const card = get().card
-            if (!id || !oldImageID || !card) {
-                Logger.errorToast('Could not get data, something very wrong has happned!')
+            if (!id || !oldImageID || !card || !card.image_id) {
+                Logger.errorToast('Could not get data, something very wrong has happened!')
                 return
             }
             const imageID = Date.now()
-            await db.mutate.updateCardField('image_id', imageID, id)
-            await deleteImage(oldImageID)
-            await copyImage(sourceURI, imageID)
-            card.image_id = imageID
-            set((state) => ({ ...state, card: card }))
+            try {
+                await db.mutate.updateCardField('image_id', imageID, id)
+                await deleteImage(oldImageID)
+                await copyImage(sourceURI, imageID)
+                card.image_id = imageID
+                set((state) => ({ ...state, card: card }))
+            } catch (error) {
+                Logger.error('Failed to update image:', error)
+                Logger.errorToast('Failed to update image. Please try again.')
+                // Attempt to rollback the database change
+                try {
+                    await db.mutate.updateCardField('image_id', oldImageID, id)
+                } catch (rollbackError) {
+                    Logger.error('Failed to rollback image update:', rollbackError)
+                }
+            }
         },
         getCache: async (charName: string) => {
             const cache = get().tokenCache
@@ -195,7 +217,7 @@ export namespace Characters {
             if (cache?.otherName && cache.otherName === useUserStore.getState().card?.name)
                 return cache
 
-            if (!card)
+            if (!card || !card.description || !card.mes_example || !card.personality || !card.scenario)
                 return {
                     otherName: charName,
                     description_length: 0,
@@ -486,7 +508,10 @@ export namespace Characters {
             }
 
             export const updateCard = async (card: CharacterCardData, cardID: number) => {
-                if (!card) return
+                if (!card || !card.description || !card.first_mes || !card.name || !card.personality || !card.scenario || !card.mes_example) {
+                    Logger.errorToast('Invalid card data provided')
+                    return
+                }
 
                 try {
                     await database
@@ -687,55 +712,79 @@ export namespace Characters {
             }
 
             export const duplicateCard = async (charId: number) => {
-                const card = await db.query.card(charId)
+                try {
+                    const card = await db.query.card(charId)
 
-                if (!card) {
-                    Logger.errorToast('Failed to copy card: Card does not exit')
-                    return
+                    if (!card) {
+                        Logger.errorToast('Failed to copy card: Card does not exit')
+                        return
+                    }
+
+                    // Add null checks for card properties
+                    if (!card.image_id) {
+                        Logger.errorToast('Failed to copy card: Invalid image data')
+                        return
+                    }
+
+                    const imageInfo = await FS.getInfoAsync(getImageDir(card.image_id))
+                    const cacheLoc = imageInfo.exists ? `${FS.cacheDirectory}${card.image_id}` : ''
+
+                    if (imageInfo.exists)
+                        await FS.copyAsync({
+                            from: getImageDir(card.image_id),
+                            to: cacheLoc,
+                        })
+
+                    const now = Date.now()
+                    card.last_modified = now
+                    card.image_id = now
+                    if (card.background_image) {
+                        const backgroundId = Date.now()
+                        await FS.copyAsync({
+                            from: getImageDir(card.background_image),
+                            to: getImageDir(backgroundId),
+                        })
+                        card.background_image = backgroundId
+                    }
+                    const cv2 = convertDBDataToCV2(card)
+                    if (!cv2) {
+                        Logger.errorToast('Failed to copy card')
+                        return
+                    }
+                    await createCharacter(cv2, cacheLoc)
+                        .then(() => Logger.info(`Card cloned: ${card.name}`))
+                        .catch((e) => Logger.info(`Failed to clone card: ${e}`))
+                } catch (error) {
+                    Logger.error('Failed to duplicate card:', error)
+                    Logger.errorToast('Failed to copy card. Please try again.')
+                    throw error // Re-throw to allow caller to handle
                 }
-
-                const imageInfo = await FS.getInfoAsync(getImageDir(card.image_id))
-                const cacheLoc = imageInfo.exists ? `${FS.cacheDirectory}${card.image_id}` : ''
-
-                if (imageInfo.exists)
-                    await FS.copyAsync({
-                        from: getImageDir(card.image_id),
-                        to: cacheLoc,
-                    })
-
-                const now = Date.now()
-                card.last_modified = now
-                card.image_id = now
-                if (card.background_image) {
-                    const backgroundId = Date.now()
-                    await FS.copyAsync({
-                        from: getImageDir(card.background_image),
-                        to: getImageDir(backgroundId),
-                    })
-                    card.background_image = backgroundId
-                }
-                const cv2 = convertDBDataToCV2(card)
-                if (!cv2) {
-                    Logger.errorToast('Failed to copy card')
-                    return
-                }
-                await createCharacter(cv2, cacheLoc)
-                    .then(() => Logger.info(`Card cloned: ${card.name}`))
-                    .catch((e) => Logger.info(`Failed to clone card: ${e}`))
             }
 
             export const updateBackground = async (charId: number, imageURI: number) => {
-                await database
-                    .update(characters)
-                    .set({ background_image: imageURI })
-                    .where(eq(characters.id, charId))
+                try {
+                    await database
+                        .update(characters)
+                        .set({ background_image: imageURI })
+                        .where(eq(characters.id, charId))
+                } catch (error) {
+                    Logger.error('Failed to update background:', error)
+                    Logger.errorToast('Failed to update background. Please try again.')
+                    throw error // Re-throw to allow caller to handle
+                }
             }
 
             export const deleteBackground = async (charId: number) => {
-                await database
-                    .update(characters)
-                    .set({ background_image: null })
-                    .where(eq(characters.id, charId))
+                try {
+                    await database
+                        .update(characters)
+                        .set({ background_image: null })
+                        .where(eq(characters.id, charId))
+                } catch (error) {
+                    Logger.error('Failed to delete background:', error)
+                    Logger.errorToast('Failed to delete background. Please try again.')
+                    throw error // Re-throw to allow caller to handle
+                }
             }
         }
     }
@@ -820,8 +869,14 @@ export namespace Characters {
         }
         const converted = createBlankV2Card(result.data.name, result.data)
 
-        Logger.info(`Creating new character: ${result.data.name}`)
-        return db.mutate.createCharacter(converted, uri)
+        try {
+            Logger.info(`Creating new character: ${result.data.name}`)
+            return await db.mutate.createCharacter(converted, uri)
+        } catch (error) {
+            Logger.error('Failed to create character from V1 JSON:', error)
+            Logger.errorToast('Failed to create character. Please try again.')
+            throw error // Re-throw to allow caller to handle
+        }
     }
 
     const createCharacterFromV2JSON = async (data: any, uri: string | undefined = undefined) => {
@@ -832,8 +887,14 @@ export namespace Characters {
             return await createCharacterFromV1JSON(data, uri)
         }
 
-        Logger.info(`Creating new character: ${result.data.data.name}`)
-        return await db.mutate.createCharacter(result.data, uri)
+        try {
+            Logger.info(`Creating new character: ${result.data.data.name}`)
+            return await db.mutate.createCharacter(result.data, uri)
+        } catch (error) {
+            Logger.error('Failed to create character from V2 JSON:', error)
+            Logger.errorToast('Failed to create character. Please try again.')
+            throw error // Re-throw to allow caller to handle
+        }
     }
 
     export const importCharacter = async () => {
@@ -865,6 +926,13 @@ export namespace Characters {
             Logger.error('Exported card does not exist!')
             return
         }
+        
+        // Add null check for image_id
+        if (!dbcard.image_id) {
+            Logger.error('Exported card has no image data!')
+            return
+        }
+        
         const imagePath = getImageDir(dbcard.image_id)
         // name can be empty string, should at least have something
         const exportedFileName = (dbcard.name ?? 'Character') + '.png'
