@@ -24,6 +24,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
+
 import ChatOptions from './ChatInputOptions'
 
 export type Attachment = {
@@ -215,7 +216,7 @@ const ChatInput = () => {
                                 ]}
                                 style={{
                                     color: color.text._400,
-                                    padding: 6,
+                                    padding: spacing.s,
                                     backgroundColor: color.neutral._200,
                                     borderRadius: 16,
                                 }}
@@ -231,9 +232,9 @@ const ChatInput = () => {
                                     color: color.text._400,
                                 }}
                                 buttonStyle={{
-                                    padding: 5,
+                                    padding: spacing.s,
                                     backgroundColor: color.neutral._200,
-                                    borderRadius: 32,
+                                    borderRadius: borderRadius.xl2,
                                 }}
                                 variant="tertiary"
                                 iconName="right"

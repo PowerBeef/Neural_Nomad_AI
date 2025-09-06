@@ -252,7 +252,7 @@ export namespace Chats {
                 await db.mutate.deleteChat(chatId)
                 if (get().data?.id === chatId) get().reset()
             } catch (error) {
-                Logger.error('Failed to delete chat:', error)
+                Logger.error(`Failed to delete chat: ${error}`)
                 Logger.errorToast('Failed to delete chat. Please try again.')
                 throw error // Re-throw to allow caller to handle
             }
@@ -293,7 +293,7 @@ export namespace Chats {
                 }))
                 return entry?.swipes[0].id
             } catch (error) {
-                Logger.error('Failed to create chat entry:', error)
+                Logger.error(`Failed to create chat entry: ${error}`)
                 Logger.errorToast('Failed to add message. Please try again.')
                 throw error // Re-throw to allow caller to handle
             }
@@ -301,13 +301,13 @@ export namespace Chats {
         deleteEntry: async (index: number) => {
             const messages = get().data?.messages
             if (!messages) return
-            
+
             // Add bounds checking for array access
             if (index < 0 || index >= messages.length) {
-                Logger.error('Invalid message index for deletion:', index)
+                Logger.error(`Invalid message index for deletion: ${index}`)
                 return
             }
-            
+
             const entryId = messages[index].id
             if (!entryId) return
 
@@ -325,7 +325,7 @@ export namespace Chats {
                     }
                 })
             } catch (error) {
-                Logger.error('Failed to delete chat entry:', error)
+                Logger.error(`Failed to delete chat entry: ${error}`)
                 Logger.errorToast('Failed to delete message. Please try again.')
                 throw error // Re-throw to allow caller to handle
             }
@@ -338,7 +338,7 @@ export namespace Chats {
 
             // Add bounds checking for array access
             if (index < 0 || index >= messages.length) {
-                Logger.error('Invalid message index for update:', index)
+                Logger.error(`Invalid message index for update: ${index}`)
                 return
             }
 
@@ -385,7 +385,7 @@ export namespace Chats {
                     data: state?.data ? { ...state.data, messages: messages } : state.data,
                 }))
             } catch (error) {
-                Logger.error('Failed to update chat entry:', error)
+                Logger.error(`Failed to update chat entry: ${error}`)
                 Logger.errorToast('Failed to update message. Please try again.')
                 throw error // Re-throw to allow caller to handle
             }
@@ -395,13 +395,13 @@ export namespace Chats {
         swipe: async (index: number, direction: number) => {
             let messages = get()?.data?.messages
             if (!messages) return false
-            
+
             // Add bounds checking for array access
             if (index < 0 || index >= messages.length) {
-                Logger.error('Invalid message index for swipe:', index)
+                Logger.error(`Invalid message index for swipe: ${index}`)
                 return false
             }
-            
+
             messages = [...messages]
             const swipe_id = messages[index].swipe_id
             const target = swipe_id + direction
@@ -424,7 +424,7 @@ export namespace Chats {
             try {
                 await db.mutate.updateEntrySwipeId(entryId, target)
             } catch (error) {
-                Logger.error('Failed to update entry swipe ID:', error)
+                Logger.error(`Failed to update entry swipe ID: ${error}`)
                 Logger.errorToast('Failed to update swipe position. Please try again.')
                 // Rollback the state change
                 messages[index].swipe_id = swipe_id
@@ -445,13 +445,13 @@ export namespace Chats {
         addSwipe: async (index: number, message: string = '') => {
             const messages = get().data?.messages
             if (!messages) return
-            
+
             // Add bounds checking for array access
             if (index < 0 || index >= messages.length) {
-                Logger.error('Invalid message index for swipe addition:', index)
+                Logger.error(`Invalid message index for swipe addition: ${index}`)
                 return
             }
-            
+
             const entryId = messages[index].id
 
             try {
@@ -464,7 +464,7 @@ export namespace Chats {
                     data: state?.data ? { ...state.data, messages: messages } : state.data,
                 }))
             } catch (error) {
-                Logger.error('Failed to add swipe:', error)
+                Logger.error(`Failed to add swipe: ${error}`)
                 Logger.errorToast('Failed to add message variant. Please try again.')
                 throw error // Re-throw to allow caller to handle
             }
@@ -527,7 +527,7 @@ export namespace Chats {
                 return
             }
             if (buffer.timings) updatedSwipe.timings = buffer.timings
-            
+
             try {
                 if (!index) {
                     // this means there is no chat loaded, we need to update the db anyways
@@ -539,7 +539,7 @@ export namespace Chats {
                         timings: buffer.timings,
                     })
             } catch (error) {
-                Logger.error('Failed to update from buffer:', error)
+                Logger.error(`Failed to update from buffer: ${error}`)
                 Logger.errorToast('Failed to save message. Please try again.')
                 throw error // Re-throw to allow caller to handle
             }
@@ -583,7 +583,7 @@ export namespace Chats {
             const messages = get()?.data?.messages
             const message = messages?.[index]
             if (!messages || !message) return
-            
+
             try {
                 await db.mutate.deleteAttachment(attachmentId)
                 message.attachments = message.attachments.filter((item) => item.id !== attachmentId)
@@ -593,7 +593,7 @@ export namespace Chats {
                     data: state?.data ? { ...state.data, messages: [...messages] } : state.data,
                 }))
             } catch (error) {
-                Logger.error('Failed to remove attachment:', error)
+                Logger.error(`Failed to remove attachment: ${error}`)
                 Logger.errorToast('Failed to remove attachment. Please try again.')
                 throw error // Re-throw to allow caller to handle
             }
@@ -608,7 +608,7 @@ export namespace Chats {
             try {
                 db.mutate.renameChat(chatId, name)
             } catch (error) {
-                Logger.error('Failed to rename chat:', error)
+                Logger.error(`Failed to rename chat: ${error}`)
                 Logger.errorToast('Failed to rename chat. Please try again.')
                 // Revert the local state change
                 if (data.id === chatId) {

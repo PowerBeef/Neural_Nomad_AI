@@ -20,13 +20,13 @@ const useLocalAuth = () => {
             authenticateAsync({
                 promptMessage: 'Authentication Required',
             })
-            .then((result) => {
-                setSuccess(result.success)
-            })
-            .catch((error) => {
-                Logger.error('Authentication failed:', error)
-                setSuccess(false)
-            })
+                .then((result) => {
+                    setSuccess(result.success)
+                })
+                .catch((error) => {
+                    Logger.error(`Authentication failed: ${error}`)
+                    setSuccess(false)
+                })
         }
     }, [retryCount, enabled, success])
 
